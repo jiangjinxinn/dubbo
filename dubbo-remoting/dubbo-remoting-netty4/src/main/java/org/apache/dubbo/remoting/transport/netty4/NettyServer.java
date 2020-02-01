@@ -16,7 +16,6 @@
  */
 package org.apache.dubbo.remoting.transport.netty4;
 
-import io.netty.channel.socket.SocketChannel;
 import org.apache.dubbo.common.URL;
 import org.apache.dubbo.common.logger.Logger;
 import org.apache.dubbo.common.logger.LoggerFactory;
@@ -37,7 +36,11 @@ import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.EventLoopGroup;
+import io.netty.channel.nio.NioEventLoopGroup;
+import io.netty.channel.socket.nio.NioServerSocketChannel;
+import io.netty.channel.socket.nio.NioSocketChannel;
 import io.netty.handler.timeout.IdleStateHandler;
+import io.netty.util.concurrent.DefaultThreadFactory;
 
 import java.net.InetSocketAddress;
 import java.util.Collection;
@@ -86,22 +89,24 @@ public class NettyServer extends AbstractServer implements RemotingServer {
     protected void doOpen() throws Throwable {
         bootstrap = new ServerBootstrap();
 
-        bossGroup = NettyEventLoopFactory.eventLoopGroup(1, "NettyServerBoss");
-        workerGroup = NettyEventLoopFactory.eventLoopGroup(
-                getUrl().getPositiveParameter(IO_THREADS_KEY, Constants.DEFAULT_IO_THREADS),
-                "NettyServerWorker");
+        // 1 thread, daemon
+        bossGroup = new NioEventLoopGroup(1, new DefaultThreadFactory("NettyServerBoss", true));
+        // 获取 io 线程数
+        workerGroup = new NioEventLoopGroup(getUrl().getPositiveParameter(IO_THREADS_KEY, Constants.DEFAULT_IO_THREADS),
+                new DefaultThreadFactory("NettyServerWorker", true));
 
         final NettyServerHandler nettyServerHandler = new NettyServerHandler(getUrl(), this);
         channels = nettyServerHandler.getChannels();
 
         bootstrap.group(bossGroup, workerGroup)
-                .channel(NettyEventLoopFactory.serverSocketChannelClass())
+                .channel(NioServerSocketChannel.class)
                 .option(ChannelOption.SO_REUSEADDR, Boolean.TRUE)
+                // no delay
                 .childOption(ChannelOption.TCP_NODELAY, Boolean.TRUE)
                 .childOption(ChannelOption.ALLOCATOR, PooledByteBufAllocator.DEFAULT)
-                .childHandler(new ChannelInitializer<SocketChannel>() {
+                .childHandler(new ChannelInitializer<NioSocketChannel>() {
                     @Override
-                    protected void initChannel(SocketChannel ch) throws Exception {
+                    protected void initChannel(NioSocketChannel ch) throws Exception {
                         // FIXME: should we use getTimeout()?
                         int idleTimeout = UrlUtils.getIdleTimeout(getUrl());
                         NettyCodecAdapter adapter = new NettyCodecAdapter(getCodec(), getUrl(), NettyServer.this);
@@ -112,6 +117,7 @@ public class NettyServer extends AbstractServer implements RemotingServer {
                         ch.pipeline()
                                 .addLast("decoder", adapter.getDecoder())
                                 .addLast("encoder", adapter.getEncoder())
+                                // all idle
                                 .addLast("server-idle-handler", new IdleStateHandler(0, 0, idleTimeout, MILLISECONDS))
                                 .addLast("handler", nettyServerHandler);
                     }

@@ -113,6 +113,8 @@ public class NettyClient extends AbstractClient {
                 ch.pipeline()//.addLast("logging",new LoggingHandler(LogLevel.INFO))//for debug
                         .addLast("decoder", adapter.getDecoder())
                         .addLast("encoder", adapter.getEncoder())
+                        // 客户端 idle 检测为 read idle, write idle 写超时不做处理
+                        // 不写心跳包的一种方式
                         .addLast("client-idle-handler", new IdleStateHandler(heartbeatInterval, 0, 0, MILLISECONDS))
                         .addLast("handler", nettyClientHandler);
 

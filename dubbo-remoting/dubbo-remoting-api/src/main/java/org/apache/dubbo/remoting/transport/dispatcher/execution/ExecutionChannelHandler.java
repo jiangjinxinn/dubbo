@@ -44,6 +44,7 @@ public class ExecutionChannelHandler extends WrappedChannelHandler {
     public void received(Channel channel, Object message) throws RemotingException {
         ExecutorService executor = getPreferredExecutorService(message);
 
+        // 请求直接派发到线程池上
         if (message instanceof Request) {
             try {
                 executor.execute(new ChannelEventRunnable(channel, handler, ChannelState.RECEIVED, message));

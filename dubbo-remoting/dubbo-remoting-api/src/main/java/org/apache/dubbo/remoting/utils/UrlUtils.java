@@ -25,6 +25,7 @@ public class UrlUtils {
         int heartBeat = getHeartbeat(url);
         // idleTimeout should be at least more than twice heartBeat because possible retries of client.
         int idleTimeout = url.getParameter(Constants.HEARTBEAT_TIMEOUT_KEY, heartBeat * 3);
+        // 划重点 >= * 2
         if (idleTimeout < heartBeat * 2) {
             throw new IllegalStateException("idleTimeout < heartbeatInterval * 2");
         }

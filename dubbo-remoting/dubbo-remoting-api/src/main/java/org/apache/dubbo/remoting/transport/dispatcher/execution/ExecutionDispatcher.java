@@ -21,6 +21,7 @@ import org.apache.dubbo.remoting.ChannelHandler;
 import org.apache.dubbo.remoting.Dispatcher;
 
 /**
+ * 除请求外的所有响应，心跳，连接等
  * In addition to sending all the use thread pool processing
  */
 public class ExecutionDispatcher implements Dispatcher {
